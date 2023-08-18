@@ -16,11 +16,17 @@ def init_logger(level="DEBUG"):
     logging.basicConfig(level=numeric_level)
 
 def find_stationary_epochs(df):
+    '''
+    Identify epochs of size STATIONARY_EPOCH_SIZE for which stdev(x), stdev(y), stdev(z) all less than STATIONARY_CUTOFF
+    Roughly following van Hees https://doi.org/10.1152/japplphysiol.00421.2014
+
+        Parameters:
+            df (pd.DataFrame): data frame containing raw accelerometer data where index is datetime and cols=['x','y','z'] accel values
+
+    '''
     
     t1 = time.perf_counter()
     logging.info("Identifying stationary epochs")
-    #roughly following van Hees https://doi.org/10.1152/japplphysiol.00421.2014
-    #identify epochs where std(x), std(y), std(z) < 0.004g
     epochs = df.resample(STATIONARY_EPOCH_SIZE)
     std_df = epochs.std() < STATIONARY_CUTOFF
     inds = std_df.all(axis='columns')
@@ -208,34 +214,38 @@ def getCalibrationCoefs(data, summary):
     return 
 
 def calibrate(params):
-    
+    '''
+    Computes calibration coefficients (gain and offset) of accelerometer data from stationary epochs
+    Refs: doi.org/10.1152/japplphysiol.00421.2014,  doi: 10.1123/jmpb.2018-0063, https://github.com/OxWearables/biobankAccelerometerAnalysis/blob/master/src/accelerometer/device.py
+
+        Parameters:
+            params.workdir (str):           path of working directory
+            params.datadir (str):           path to raw accel. data assuming data is organized into subdirectories by user id
+                                            datadir/[beiwe id]/accelerometer/[accel files]
+            params.id (str):                Beiwe id
+            params.scale_g (bool):          whether to scale raw accel data by unit gravity (typical for data collected with android)
+            params.save_stationary (bool):  whether to save stationary epoch data
+
+        Output:
+            calibration coefficients saved to file: [workdir]/processed_accel/calibration_1/[id]/[id]_calib_coef.json
+            (optional) stationary epochs save to file: [workdir]/processed_accel/calibration_1/[id]/[id]_stationary_epochs.csv
+    '''
+
     logging.info("-------------CALIBRATION-------------")
     
-    wd = raw_data_dir = id = user_os = output_dir = ""
-    save_stationary = False
-    if "workdir" in params:
-        wd = params['workdir']
-    if "raw_data_dir" in params:
-        raw_data_dir = params['raw_data_dir']
-    if "id" in params:
-        id = params['id']
-    if "os" in params:
-        user_os = params['os']
-    if "save_stationary" in params:
-        if params['save_stationary'] == "true":
-            save_stationary = True
-
-
+    wd = params.workdir
+    raw_data_dir = params.datadir
+    id = params.id
+    scale_g = params.scale_g
+    save_stationary = params.save_stationary
 
     #raw data is expected to be organized in subdirectories labeled by user id
     inPath = os.path.join(raw_data_dir, id, "accelerometer")
     if os.path.exists(inPath) == False:
         logging.error(f"Directory does not exist: {inPath}")
     
-    scale_by_g = False
-    if user_os == 'android':
-        scale_by_g = True
-    data = load_all_accelerometer_data(inPath, scale_by_g=scale_by_g)
+    
+    data = load_all_accelerometer_data(inPath, scale_by_g=scale_g)
     stationary_epochs = find_stationary_epochs(data)
 
     calibration_summary = {}
@@ -247,43 +257,40 @@ def calibrate(params):
     #create output directory for processed data
     output_dir = os.path.join(wd, "processed_accel")
     os.makedirs(output_dir, exist_ok=True)
-    logging.info(f"Output directory set to {output_dir}")
+    
 
     #save stationary raw data to file
     calibration_dir = os.path.join(output_dir, "calibration_1")
     os.makedirs(calibration_dir, exist_ok=True)
+    logging.info(f"Output directory set to {calibration_dir}")
 
     user_out = os.path.join(calibration_dir, id)
     os.makedirs(user_out, exist_ok=True)
 
     if save_stationary:
-        stationary_epochs.to_csv(os.path.join(user_out, id + "_stationary_epochs.csv"), index=False)
-    with open(os.path.join(user_out, id+"_cal_coef.json"), 'w') as f:
+        outFile1 = os.path.join(user_out, id + "_stationary_epochs.csv")
+        stationary_epochs.to_csv(outFile1, index=False)
+        logging.info(f"Writing stationary epoch data to {outFile}")
+    outFile2 = os.path.join(user_out, id+"_cal_coef.json")
+    with open(os.path.join(outFile2, 'w')) as f:
         json.dump(calibration_summary, f)
+        logging.info(f"Writing calibration coefficients to file {outFile2}")
 
+    logging.info("-------------CALIBRATION PROCEDURE COMPLETE-------------")
 
 if __name__ == "__main__":
 
     init_logger()
 
-    #parser = argparse.ArgumentParser()
-    #parser.add_argument('--workdir', required=True)
-    #parser.add_argument('--id', required=True)
-    #parser.add_argument('--os', required=True)
-    #parser.add_argument('--outdir', required=True)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--workdir', required=True, type=str)
+    parser.add_argument('--datadir', required=True, type=str)
+    parser.add_argument('--id', required=True,type=str)
+    parser.add_argument('--scale-g', action=argparse.BooleanOptionalAction)
+    parser.add_argument('--save-stationary', action=argparse.BooleanOptionalAction)
+    parser.set_defaults(save_stationary=False, scale_g=False)
 
-    #args = parser.parse_args()
-    #workdir = args.workdir
-    #id = args.id
-    #os = args.os
-    #outdir = args.outdir
-    params = {
-        "workdir":"/Users/jadrake/Local_dev/beiwe_msk_analysis/",
-        "raw_data_dir":"/Users/jadrake/Local_dev/beiwe_msk_analysis/temp_data",
-        "id":"g5xnzgjd",
-        "os":"android",
-        "save_stationary":"true"
-    }
+    args = parser.parse_args()
 
     
-    calibrate(params)
+    calibrate(args)
