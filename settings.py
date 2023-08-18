@@ -1,9 +1,10 @@
-#general
+#features
 VALID_DAY_START = 8 #8am
 VALID_DAY_END = 20 #8pm
 NUM_EPOCHS_IN_VALID_DAY = 721
 EXERT_ACTIVITY_CUTOFF = 0.15 #g^2
 G_UNIT = 9.80665 #m/s^2
+EPOCH_SIZE = 60 #seconds
 
 #Calibration settings
 STATIONARY_CUTOFF = 0.004 #g

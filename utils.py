@@ -4,7 +4,10 @@ import os
 import time
 from settings import TIMESTAMP_COL, X_COL, Y_COL, Z_COL, G_UNIT, TIMEZONE
 
-
+def init_logger(level="DEBUG"):
+    numeric_level = getattr(logging, level.upper(), None)
+    logging.basicConfig(level=numeric_level)
+    
 def load_accel_data_from_file(inFile, scale_by_g=False):
     temp = pd.read_csv(inFile, 
             header=0, usecols=[TIMESTAMP_COL, X_COL, Y_COL, Z_COL], 

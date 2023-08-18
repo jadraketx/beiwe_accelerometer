@@ -6,14 +6,12 @@ import time
 import pandas as pd
 import numpy as np
 import json
-from utils import load_all_accelerometer_data
+from utils import load_all_accelerometer_data, init_logger
 import statsmodels.api as sm
 import pprint
 from settings import STATIONARY_CUTOFF, STATIONARY_EPOCH_SIZE, MAXITER, IMPROV_TOL, ERR_TOL, CALIB_CUBE, CALIB_MIN_SAMPLES
 
-def init_logger(level="DEBUG"):
-    numeric_level = getattr(logging, level.upper(), None)
-    logging.basicConfig(level=numeric_level)
+
 
 def find_stationary_epochs(df):
     '''
@@ -243,6 +241,7 @@ def calibrate(params):
     inPath = os.path.join(raw_data_dir, id, "accelerometer")
     if os.path.exists(inPath) == False:
         logging.error(f"Directory does not exist: {inPath}")
+        sys.exit(1)
     
     
     data = load_all_accelerometer_data(inPath, scale_by_g=scale_g)
@@ -270,9 +269,9 @@ def calibrate(params):
     if save_stationary:
         outFile1 = os.path.join(user_out, id + "_stationary_epochs.csv")
         stationary_epochs.to_csv(outFile1, index=False)
-        logging.info(f"Writing stationary epoch data to {outFile}")
+        logging.info(f"Writing stationary epoch data to {outFile1}")
     outFile2 = os.path.join(user_out, id+"_cal_coef.json")
-    with open(os.path.join(outFile2, 'w')) as f:
+    with open(outFile2, 'w') as f:
         json.dump(calibration_summary, f)
         logging.info(f"Writing calibration coefficients to file {outFile2}")
 
