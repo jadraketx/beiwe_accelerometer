@@ -15,6 +15,10 @@ ERR_TOL = 0.01  # 10mg
 CALIB_CUBE = 0.3
 CALIB_MIN_SAMPLES = 50
 
+#wear/non-wear paramters
+#STATIONARY_CUTOFF = 0.004
+NON_WEAR_WINDOW = 30 #minutes
+
 
 #Raw data
 TIMESTAMP_COL = "timestamp"
