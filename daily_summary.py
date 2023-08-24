@@ -59,7 +59,7 @@ def get_physical_activity_metrics(d, df):
     madMean = df_wear['mad'].mean()
 
     #mx metrics
-    m5=m10=m15=m30=m60=m60=m120=-1
+    m5=m10=m15=m30=m60=m60=m5=m90=m120=-1
     l = len(enmo)
     if l>=5:
         m5 = enmo[5-1]

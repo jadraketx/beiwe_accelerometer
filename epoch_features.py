@@ -249,7 +249,7 @@ if __name__ == "__main__":
     parser.add_argument('--recalibrate', action=argparse.BooleanOptionalAction)
     parser.add_argument('--scale-g', action=argparse.BooleanOptionalAction)
     parser.add_argument('--epoch-size', type=int)
-    parser.set_defaults(epoch_size=EPOCH_SIZE, rescale=False, scale_g=False)
+    parser.set_defaults(epoch_size=EPOCH_SIZE, recalibrate=False, scale_g=False)
 
     args = parser.parse_args()
 
