@@ -1,8 +1,9 @@
 #features
-VALID_DAY_START = 8 #8am
-VALID_DAY_END = 20 #8pm
+VALID_DAY_START = "08:00:00" #8am
+VALID_DAY_END = "20:00:00" #8pm
 NUM_EPOCHS_IN_VALID_DAY = 721
-EXERT_ACTIVITY_CUTOFF = 0.15 #g^2
+EXERT_ACTIVITY_CUTOFF_STD = 0.15 #g^2
+ACC_BIN_SIZE=1 #g
 G_UNIT = 9.80665 #m/s^2
 EPOCH_SIZE = 60 #seconds
 
@@ -22,6 +23,7 @@ NON_WEAR_WINDOW = 30 #minutes
 
 #Raw data
 TIMESTAMP_COL = "timestamp"
+TIME="time"
 X_COL = "x"
 Y_COL = "y"
 Z_COL = "z"

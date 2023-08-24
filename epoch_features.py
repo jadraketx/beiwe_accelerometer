@@ -131,6 +131,7 @@ def get_acc_stats(epochs):
             yStd = y.std()
             zStd = z.std()
             
+            #ENMO
             vm = (x**2 + y**2 + z**2)**(1/2)
             enmo = vm - 1
             enmo[enmo < 0] = 0
@@ -140,6 +141,10 @@ def get_acc_stats(epochs):
             enmoMax = enmo.max()
             enmoRange = enmoMax - enmoMin
 
+            #MAD
+            #https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0134813
+            mad = np.mean(np.abs(vm - vm.mean()))
+
             stats[i] = ({
                 "time":t, "nsamples":nsamples,
                 "xMean":xMean, "yMean":yMean, "zMean":zMean,
@@ -148,7 +153,7 @@ def get_acc_stats(epochs):
                 "xRange":xRange, "yRange":yRange, "zRange":zRange,
                 "xStd":xStd, "yStd":yStd, "zStd":zStd,
                 "enmoMean":enmoMean, "enmoStd":enmoStd, "enmoMin":enmoMin, 
-                "enmoMax":enmoMax, "enmoRange":enmoRange
+                "enmoMax":enmoMax, "enmoRange":enmoRange, "mad":mad
             })
         else:
             stats[i] = ({
@@ -159,7 +164,7 @@ def get_acc_stats(epochs):
                 "xRange":pd.NA, "yRange":pd.NA, "zRange":pd.NA,
                 "xStd":pd.NA, "yStd":pd.NA, "zStd":pd.NA,
                 "enmoMean":pd.NA, "enmoStd":pd.NA, "enmoMin":pd.NA, 
-                "enmoMax":pd.NA, "enmoRange":pd.NA
+                "enmoMax":pd.NA, "enmoRange":pd.NA, "mad":pd.NA
             })
             
         i = i + 1

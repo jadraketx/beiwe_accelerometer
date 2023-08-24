@@ -5,6 +5,14 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "daily_summary",
+            "type": "python",
+            "request": "launch",
+            "program": "daily_summary.py",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
             "name": "epoch_features",
             "type": "python",
             "request": "launch",
