@@ -118,6 +118,7 @@ def compute_summaries(params):
         n = len(df)
         if n == 0:
             logging.info(f"{d} has no observation")
+            i = i + 1
             continue
         sampling_stats.append(get_sampling_metadata(d, df))
         daily_features.append(get_physical_activity_metrics(d,df))
