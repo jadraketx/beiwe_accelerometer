@@ -43,6 +43,10 @@ def get_physical_activity_metrics(d, df):
     df_wear = daytime[daytime['non_wear'] == 0]
     min_wear = len(df_wear)
 
+    if min_wear == 0:
+        logging.info(f"No weartime measurements detected: {d}")
+        return({})
+
     #frac exertional
     sum_var = df_wear['xStd']**2 + df_wear['yStd']**2 + df_wear['zStd']**2
     is_exert = sum_var > EXERT_ACTIVITY_CUTOFF_STD
@@ -121,7 +125,9 @@ def compute_summaries(params):
             i = i + 1
             continue
         sampling_stats.append(get_sampling_metadata(d, df))
-        daily_features.append(get_physical_activity_metrics(d,df))
+        res = get_physical_activity_metrics(d,df)
+        if bool(res):
+            daily_features.append()
         i = i + 1
         logging.info(f"Processing features for {d} ({i}/{num_days})")
 
