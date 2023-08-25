@@ -127,7 +127,7 @@ def compute_summaries(params):
         sampling_stats.append(get_sampling_metadata(d, df))
         res = get_physical_activity_metrics(d,df)
         if bool(res):
-            daily_features.append()
+            daily_features.append(res)
         i = i + 1
         logging.info(f"Processing features for {d} ({i}/{num_days})")
 
