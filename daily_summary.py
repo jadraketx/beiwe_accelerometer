@@ -111,18 +111,19 @@ def compute_summaries(params):
     daily = epoch_data.resample('1d')
 
     num_days = len(daily)
-    sampling_stats = [0]*num_days
-    daily_features = [0]*num_days
+    sampling_stats = []
+    daily_features = []
     i = 0
     for d, df in daily:
         n = len(df)
         if n == 0:
             logging.info(f"{d} has no observation")
             continue
-        logging.info(f"Processing features for {d} ({i}/{num_days})")
-        sampling_stats[i] = get_sampling_metadata(d, df)
-        daily_features[i] = get_physical_activity_metrics(d,df)
+        sampling_stats.append(get_sampling_metadata(d, df))
+        daily_features.append(get_physical_activity_metrics(d,df))
         i = i + 1
+        logging.info(f"Processing features for {d} ({i}/{num_days})")
+
     sampling_stats = pd.DataFrame(sampling_stats)
     daily_features = pd.DataFrame(daily_features)
 
