@@ -179,90 +179,6 @@ def find_non_wear_segments(epochs, sd_non_wear_threshold, non_wear_window):
     logging.info("Finished finding non-wear segments ({0:8.2f}s)".format(t2 - t1))
     return(epochs)
 
-def get_acc_stats_old(epochs):
-
-    t1 = time.perf_counter()
-
-    n = len(epochs)
-    if n == 0:
-        logging.error("No epoch data")
-        sys.exit(1)
-    logging.info(f"Computing statistics for {n} epochs")
-
-    stats = [0] * len(epochs)
-    #stats = list()
-    i = 0
-    for t, df in epochs:
-        nsamples = len(df)
-        if nsamples > 2:
-            x = df[X_COL]
-            y = df[Y_COL]
-            z = df[Z_COL]
-
-            xMean = x.mean()
-            yMean = y.mean()
-            zMean = z.mean()
-            xMin = x.min()
-            yMin = y.min()
-            zMin = z.min()
-            xMax = x.max()
-            yMax = y.max()
-            zMax = z.max()
-            xRange = xMax - xMin
-            yRange = yMax - yMin
-            zRange = zMax - zMin
-            xStd = x.std()
-            yStd = y.std()
-            zStd = z.std()
-            
-            #ENMO
-            vm = (x**2 + y**2 + z**2)**(1/2)
-            enmo = vm - 1
-            enmo[enmo < 0] = 0
-            enmoMean = enmo.mean()
-            enmoStd = enmo.std()
-            enmoMin = enmo.min()
-            enmoMax = enmo.max()
-            enmoRange = enmoMax - enmoMin
-
-            #MAD
-            #https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0134813
-            mad = np.mean(np.abs(vm - vm.mean()))
-
-            stats[i] = ({
-                "time":t, "nsamples":nsamples,
-                "xMean":xMean, "yMean":yMean, "zMean":zMean,
-                "xMin":xMin, "yMin":yMin, "zMin":zMin,
-                "xMax":xMax, "yMax":yMax, "zMax":zMax,
-                "xRange":xRange, "yRange":yRange, "zRange":zRange,
-                "xStd":xStd, "yStd":yStd, "zStd":zStd,
-                "enmoMean":enmoMean, "enmoStd":enmoStd, "enmoMin":enmoMin, 
-                "enmoMax":enmoMax, "enmoRange":enmoRange, "mad":mad
-            })
-        else:
-            stats[i] = ({
-                "time":t, "nsamples":nsamples,
-                "xMean":pd.NA, "yMean":pd.NA, "zMean":pd.NA,
-                "xMin":pd.NA, "yMin":pd.NA, "zMin":pd.NA,
-                "xMax":pd.NA, "yMax":pd.NA, "zMax":pd.NA,
-                "xRange":pd.NA, "yRange":pd.NA, "zRange":pd.NA,
-                "xStd":pd.NA, "yStd":pd.NA, "zStd":pd.NA,
-                "enmoMean":pd.NA, "enmoStd":pd.NA, "enmoMin":pd.NA, 
-                "enmoMax":pd.NA, "enmoRange":pd.NA, "mad":pd.NA
-            })
-            
-        i = i + 1
-
-        if i % 2000 == 0:
-            logging.info("{0:2.2f} percent epochs processed".format(i*100/n))
-
-    t2 = time.perf_counter()
-    logging.info("Finshed computing epoch statistis {0:8.2f}".format(t2-t1))
-
-    stats = pd.DataFrame(stats)
-    stats = stats.set_index("time")
-    return(stats)
-
 def get_epoch_stats(epochs):
     
     t1 = time.perf_counter()
@@ -292,13 +208,6 @@ def compute_epoch_features(params):
     recalibrate_path = None
     if params.recalibrate is not None:
         recalibrate_path = params.recalibrate
-
-    #wd = params['workdir']
-    #raw_data_dir = params['datadir']
-    #id = params['id']
-    #epoch_size = params['epoch_size']
-    #scale_g = params['scale_g']
-    #recalibrate = params['recalibrate']
 
     if os.path.exists(wd) == False:
         logging.error(f"Working directory does not exist: {wd}")
@@ -341,15 +250,7 @@ def compute_epoch_features(params):
     van_hees_60 = calc_van_hees_nonwear(data, minutes=list(epochs.groups), min_period=60)
 
     epoch_stats = pd.concat([epoch_stats,xyz_nonwear_15, xyz_nonwear_30, xyz_nonwear_60,vm_nonwear_15,vm_nonwear_30,vm_nonwear_60,van_hees_30,van_hees_60], axis=1)
-    #epoch_stats = find_non_wear_segments(epoch_stats, sd_non_wear_threshold=STATIONARY_CUTOFF, non_wear_window=NON_WEAR_WINDOW)
 
-    #epoch_dir = os.path.join(wd, "epoch_features")
-    #os.makedirs(epoch_dir, exist_ok=True)
-    #user_out = os.path.join(epoch_dir, id)
-    #os.makedirs(user_out, exist_ok=True)
-
-
-#    logging.info(f"Output directory set to {wd}")
     outFile = os.path.join(wd, id+"_epoch_features.csv")
     logging.info(f"Writing epoch features data to {outFile}")
     #save epochs that have great than 2 observations
