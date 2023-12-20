@@ -9,12 +9,12 @@ import json
 from utils import load_all_accelerometer_data, init_logger
 from settings import EPOCH_SIZE, X_COL, Y_COL, Z_COL, STATIONARY_CUTOFF, NON_WEAR_WINDOW
 
-def get_calibration_ceof(calibration_dir, id):
+def get_calibration_ceof(coefFile):
         
-        if os.path.exists(calibration_dir) == False:
-            logging.error(f"Recalibration requires output from calibrate.py. Expected directory {calibration_dir}")
-            sys.exit(1)
-        coefFile = os.path.join(calibration_dir, id+"_cal_coef.json")
+        #if os.path.exists(calibration_dir) == False:
+        #   logging.error(f"Recalibration requires output from calibrate.py. Expected directory {calibration_dir}")
+        #    sys.exit(1)
+        #coefFile = os.path.join(calibration_dir, id+"_cal_coef.json")
         if os.path.exists(coefFile) == False:
             logging.error(f"Calibration coefficient file not found: {coefFile}")
             sys.exit(1)
@@ -44,6 +44,90 @@ def get_calibration_ceof(calibration_dir, id):
         logging.info(f"\t yInt: {intercept['yIntercept']}")
         logging.info(f"\t zInt: {intercept['zIntercept']}")
         return(intercept, slope)
+
+def calc_xyz_sd_nonwear(epoch_stats, min_period=NON_WEAR_WINDOW, sd_cutoff=STATIONARY_CUTOFF):
+    #see https://doi.org/10.1080/02640414.2019.1703301
+    #method 1: calc variance of acc_x, acc_y, acc_z for each epoch
+    #if variance is < 0.003g for 30 consecutive epochs, label all epochs as non-wear
+    logging.info(f"Finding non-wear segments: method=SD_XYZ, period={min_period}")
+    t1 = time.perf_counter()
+    l = len(epoch_stats)
+    if l < min_period:
+        print("Number of epochs less than minimum period")
+        return None
+
+    colname = "xyz_nonwear_" + str(min_period)
+    xyz_nonwear = pd.DataFrame({colname:[0]*l},index=epoch_stats.index)
+    xyz_candidates = (epoch_stats['x_std'] < sd_cutoff) & (epoch_stats['y_std'] < sd_cutoff) & (epoch_stats['z_std'] < sd_cutoff)
+    stop = l - min_period
+    for k in range(0,stop):
+        window = xyz_candidates[k:(k+min_period)]
+        if window.sum() == min_period:
+            xyz_nonwear[colname][window.index] = 1
+    t2 = time.perf_counter()
+    logging.info("Complete ({0:8.2f}s)".format(t2 - t1))
+    return(xyz_nonwear)
+
+def calc_vm_sd_nonwear(epoch_stats, min_period=NON_WEAR_WINDOW, sd_cutoff=STATIONARY_CUTOFF):
+
+    logging.info(f"Finding non-wear segments: method=SD_VM, period={min_period}")
+    t1 = time.perf_counter()
+
+    #method 2: same thing as above but with variance of the vector magnitude
+    l = len(epoch_stats)
+    if l < min_period:
+        print("Number of epochs less than minimum period")
+        return None
+
+    colname = "vm_nonwear_" + str(min_period)
+    vm_nonwear = pd.DataFrame({colname:[0]*l},index=epoch_stats.index)
+    vm_candidates = epoch_stats['vm_std'] < sd_cutoff
+    stop = l - min_period
+    for k in range(0,stop):
+        window2 = vm_candidates[k:(k+min_period)]
+        if window2.sum() == min_period:
+            vm_nonwear[colname][window2.index] = 1
+    t2 = time.perf_counter()
+    logging.info("Complete ({0:8.2f}s)".format(t2 - t1))
+    return(vm_nonwear)
+
+def calc_van_hees_nonwear(df, minutes, min_period=NON_WEAR_WINDOW, step=15, sd_cutoff=STATIONARY_CUTOFF):
+
+    logging.info(f"Finding non-wear segments: method=van Hees, period={min_period}")
+    t1 = time.perf_counter()
+
+    #https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0022922
+    l = len(minutes)
+    if l < min_period:
+        print("Number of epochs less than minimum period")
+        return None
+    colname = "van_hees"+"_"+str(min_period)
+    van_hees = pd.DataFrame({colname:[0]*l}, index=minutes)
+    t = 0
+    winSize = min_period
+    while (t+winSize) < len(minutes):
+        win = minutes[t:(t+winSize+1)]
+        tStart = win[0]
+        tStop = win[-1]
+        
+        temp = df[tStart:tStop]
+        nsamples = len(temp)
+        #print(f"{t}\t{win[0]}\t{win[-1]}\t{nsamples}")
+        if nsamples >= 2:
+            temp = temp[['x','y','z']]
+            temp_stats = temp.agg(["std","min","max"])
+            stdev = temp_stats.loc['std']
+            r = temp_stats.loc['max']-temp_stats.loc['min']
+            #criteria 1
+            if sum(stdev < sd_cutoff) >= 2:
+                van_hees[colname][win] = 1
+            #critera 2
+            if sum(r < 0.05) >= 2:
+                van_hees[colname][win] = 1
+        t = t+step   
+    t2 = time.perf_counter()
+    logging.info("Complete ({0:8.2f}s)".format(t2 - t1))
+    return(van_hees)
 
 def find_non_wear_segments(epochs, sd_non_wear_threshold, non_wear_window):
 
@@ -95,7 +179,7 @@ def find_non_wear_segments(epochs, sd_non_wear_threshold, non_wear_window):
     logging.info("Finished finding non-wear segments ({0:8.2f}s)".format(t2 - t1))
     return(epochs)
 
-def get_acc_stats(epochs):
+def get_acc_stats_old(epochs):
 
     t1 = time.perf_counter()
 
@@ -179,6 +263,22 @@ def get_acc_stats(epochs):
     stats = stats.set_index("time")
     return(stats)
 
+def get_epoch_stats(epochs):
+    
+    t1 = time.perf_counter()
+    n = len(epochs)
+    if n == 0:
+        logging.error("No epoch data")
+        sys.exit(1)
+    logging.info(f"Computing statistics for {n} epochs")
+    epoch_stats = epochs.agg(['mean','median','skew','min','max','std'])
+    epoch_stats.columns = [col[0]+"_"+col[1] for col in epoch_stats.columns.values]
+    epoch_stats.insert(0, "nsamples", epochs.size())
+    t2 = time.perf_counter()
+    logging.info("Finshed computing epoch statistis {0:8.2f}".format(t2-t1))
+    return(epoch_stats)
+
+
 def compute_epoch_features(params):
 
     logging.info("-------------EPOCH FEATURES-------------")
@@ -188,7 +288,10 @@ def compute_epoch_features(params):
     id = params.id
     epoch_size = params.epoch_size
     scale_g = params.scale_g
-    recalibrate = params.recalibrate
+
+    recalibrate_path = None
+    if params.recalibrate is not None:
+        recalibrate_path = params.recalibrate
 
     #wd = params['workdir']
     #raw_data_dir = params['datadir']
@@ -197,7 +300,10 @@ def compute_epoch_features(params):
     #scale_g = params['scale_g']
     #recalibrate = params['recalibrate']
 
-    output_dir = os.path.join(wd, "processed_accel")
+    if os.path.exists(wd) == False:
+        logging.error(f"Working directory does not exist: {wd}")
+    else:
+        logging.info(f"Working directory set to {wd}")
 
     #raw data is expected to be organized in subdirectories labeled by user id
     inPath = os.path.join(raw_data_dir, id, "accelerometer")
@@ -208,32 +314,47 @@ def compute_epoch_features(params):
     data = load_all_accelerometer_data(inPath, scale_by_g=scale_g)
 
     #recalibrate: coefficient file assumed to be in [wd]/processed_accel/calibrate_1/[id]/[id]_calib_coef.json
-    if recalibrate:
+    if recalibrate_path:
         calibration_summary = {}
 
-        calibration_dir = os.path.join(output_dir, "calibration_1", id)
-        intercept, slope = get_calibration_ceof(calibration_dir, id)
+        #calibration_dir = os.path.join(recalibrate_dir, "calibration_1", id)
+        intercept, slope = get_calibration_ceof(recalibrate_path)
         
         data[X_COL] = data[X_COL] * slope['xSlope'] + intercept['xIntercept']
         data[Y_COL] = data[Y_COL] * slope['ySlope'] + intercept['yIntercept']
         data[Z_COL] = data[Z_COL] * slope['zSlope'] + intercept['zIntercept']
 
-    #group into minute epochs
+    #group into minute epochs and calculate stats
+    vm = (data[X_COL]**2 + data[Y_COL]**2 + data[Z_COL]**2)**(1/2)
+    data.insert(len(data.columns), "vm", vm)
     epochs = data.resample(str(epoch_size)+"s")
-    epoch_stats = get_acc_stats(epochs)
-    epoch_stats = find_non_wear_segments(epoch_stats, sd_non_wear_threshold=STATIONARY_CUTOFF, non_wear_window=NON_WEAR_WINDOW)
+    epoch_stats = get_epoch_stats(epochs)
 
-    epoch_dir = os.path.join(output_dir, "epoch_features_2")
-    os.makedirs(epoch_dir, exist_ok=True)
-    user_out = os.path.join(epoch_dir, id)
-    os.makedirs(user_out, exist_ok=True)
+    #find nonwear segments
+    xyz_nonwear_15 = calc_xyz_sd_nonwear(epoch_stats, min_period=15)
+    xyz_nonwear_30 = calc_xyz_sd_nonwear(epoch_stats, min_period=30)
+    xyz_nonwear_60 = calc_xyz_sd_nonwear(epoch_stats, min_period=60)
+    vm_nonwear_15 = calc_vm_sd_nonwear(epoch_stats, min_period=15)
+    vm_nonwear_30 = calc_vm_sd_nonwear(epoch_stats, min_period=30)
+    vm_nonwear_60 = calc_vm_sd_nonwear(epoch_stats, min_period=60)
+    van_hees_30 = calc_van_hees_nonwear(data, minutes=list(epochs.groups), min_period=30)
+    van_hees_60 = calc_van_hees_nonwear(data, minutes=list(epochs.groups), min_period=60)
 
-    logging.info(f"Output directory set to {user_out}")
-    outFile = os.path.join(user_out, id+"_epoch_features.csv")
+    epoch_stats = pd.concat([epoch_stats,xyz_nonwear_15, xyz_nonwear_30, xyz_nonwear_60,vm_nonwear_15,vm_nonwear_30,vm_nonwear_60,van_hees_30,van_hees_60], axis=1)
+    #epoch_stats = find_non_wear_segments(epoch_stats, sd_non_wear_threshold=STATIONARY_CUTOFF, non_wear_window=NON_WEAR_WINDOW)
+
+    #epoch_dir = os.path.join(wd, "epoch_features")
+    #os.makedirs(epoch_dir, exist_ok=True)
+    #user_out = os.path.join(epoch_dir, id)
+    #os.makedirs(user_out, exist_ok=True)
+
+
+#    logging.info(f"Output directory set to {wd}")
+    outFile = os.path.join(wd, id+"_epoch_features.csv")
     logging.info(f"Writing epoch features data to {outFile}")
     #save epochs that have great than 2 observations
     epoch_stats = epoch_stats[epoch_stats['nsamples'] > 2]
-    epoch_stats.to_csv(outFile)
+    epoch_stats.to_csv(outFile, index_label="time")
 
     logging.info("--------EPOCH FEATURE PROCESSING COMPLETE--------")
     
@@ -246,10 +367,10 @@ if __name__ == "__main__":
     parser.add_argument('--workdir', required=True, type=str)
     parser.add_argument('--datadir', required=True, type=str)
     parser.add_argument('--id', required=True,type=str)
-    parser.add_argument('--recalibrate', action=argparse.BooleanOptionalAction)
+    parser.add_argument('--recalibrate', required=False, type=str)
     parser.add_argument('--scale-g', action=argparse.BooleanOptionalAction)
     parser.add_argument('--epoch-size', type=int)
-    parser.set_defaults(epoch_size=EPOCH_SIZE, recalibrate=False, scale_g=False)
+    parser.set_defaults(epoch_size=EPOCH_SIZE, scale_g=False)
 
     args = parser.parse_args()
 

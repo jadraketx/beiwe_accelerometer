@@ -8,7 +8,7 @@ G_UNIT = 9.80665 #m/s^2
 EPOCH_SIZE = 60 #seconds
 
 #Calibration settings
-STATIONARY_CUTOFF = 0.004 #g
+STATIONARY_CUTOFF = 0.003 #g
 STATIONARY_EPOCH_SIZE = '10s' #pandas resample format
 MAXITER = 1000
 IMPROV_TOL = 0.0001  # 0.01%

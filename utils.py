@@ -23,6 +23,7 @@ def load_all_accelerometer_data(inPath, scale_by_g = False):
     t1 = time.perf_counter()
     
     inFiles = os.listdir(inPath)
+    inFiles.sort()
     logging.info(f"Loading data from {inPath}")
     logging.info(f"Found {str(len(inFiles))} files")
 
