@@ -9,7 +9,7 @@ EPOCH_SIZE = 60 #seconds
 
 #Calibration settings
 STATIONARY_CUTOFF = 0.003 #g
-STATIONARY_EPOCH_SIZE = '10s' #pandas resample format
+STATIONARY_EPOCH_SIZE = '60s' #pandas resample format
 MAXITER = 1000
 IMPROV_TOL = 0.0001  # 0.01%
 ERR_TOL = 0.01  # 10mg

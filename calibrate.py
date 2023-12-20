@@ -32,7 +32,7 @@ def find_stationary_epochs(df):
     res = [0]*len(stationary_epochs)
     for i in range(0,len(stationary_epochs)):
         avg = epochs.get_group(stationary_epochs[i]).mean()
-        res[i] = {"xMean":avg[0],"yMean":avg[1],"zMean":avg[2]}
+        res[i] = {"xMean":avg.iloc[0],"yMean":avg.iloc[1],"zMean":avg.iloc[2]}
     res = pd.DataFrame(res)
 
     t2 = time.perf_counter()
@@ -225,13 +225,13 @@ def calibrate(params):
             params.save_stationary (bool):  whether to save stationary epoch data
 
         Output:
-            calibration coefficients saved to file: [workdir]/processed_accel/calibration_1/[id]/[id]_calib_coef.json
-            (optional) stationary epochs save to file: [workdir]/processed_accel/calibration_1/[id]/[id]_stationary_epochs.csv
+            calibration coefficients saved to file: [workdir]/[id]_calib_coef.json
+            (optional) stationary epochs save to file: [workdir]/[id]_stationary_epochs.csv
     '''
 
     logging.info("-------------CALIBRATION-------------")
     
-    wd = params.workdir
+    output_dir = params.workdir
     raw_data_dir = params.datadir
     id = params.id
     scale_g = params.scale_g
@@ -243,6 +243,10 @@ def calibrate(params):
         logging.error(f"Directory does not exist: {inPath}")
         sys.exit(1)
     
+    #check if wd exists
+    if os.path.exists(output_dir) == False:
+        logging.error(f"Working directory {output_dir} does not exist")
+        sys.exit(1)
     
     data = load_all_accelerometer_data(inPath, scale_by_g=scale_g)
     stationary_epochs = find_stationary_epochs(data)
@@ -252,25 +256,11 @@ def calibrate(params):
     pp = pprint.PrettyPrinter(indent=4)
     pp.pprint(calibration_summary)
 
-    #OUTPUT
-    #create output directory for processed data
-    output_dir = os.path.join(wd, "processed_accel")
-    os.makedirs(output_dir, exist_ok=True)
-    
-
-    #save stationary raw data to file
-    calibration_dir = os.path.join(output_dir, "calibration_1")
-    os.makedirs(calibration_dir, exist_ok=True)
-    logging.info(f"Output directory set to {calibration_dir}")
-
-    user_out = os.path.join(calibration_dir, id)
-    os.makedirs(user_out, exist_ok=True)
-
     if save_stationary:
-        outFile1 = os.path.join(user_out, id + "_stationary_epochs.csv")
+        outFile1 = os.path.join(output_dir, id + "_stationary_epochs.csv")
         stationary_epochs.to_csv(outFile1, index=False)
         logging.info(f"Writing stationary epoch data to {outFile1}")
-    outFile2 = os.path.join(user_out, id+"_cal_coef.json")
+    outFile2 = os.path.join(output_dir, id+"_cal_coef.json")
     with open(outFile2, 'w') as f:
         json.dump(calibration_summary, f)
         logging.info(f"Writing calibration coefficients to file {outFile2}")
