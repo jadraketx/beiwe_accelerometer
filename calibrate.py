@@ -34,7 +34,8 @@ def find_stationary_epochs(df):
         g = epochs.get_group(stationary_epochs[i])
         n = len(g)
         avg = g.mean()
-        res[i] = {"nsamples":n,"xMean":avg.iloc[0],"yMean":avg.iloc[1],"zMean":avg.iloc[2]}
+        t = stationary_epochs[i]
+        res[i] = {"timestamp":t,"nsamples":n,"xMean":avg.iloc[0],"yMean":avg.iloc[1],"zMean":avg.iloc[2]}
     res = pd.DataFrame(res)
 
     t2 = time.perf_counter()
