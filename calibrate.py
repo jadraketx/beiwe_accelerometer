@@ -138,7 +138,7 @@ def getCalibrationCoefs(data, summary):
     initErr = err
     bestErr = 1e16
     nStatic = len(xyz)
-
+    num_iter = 0
 
     # Check that we have enough uniformly distributed points:
     # need at least one point outside each face of the cube
@@ -148,7 +148,7 @@ def getCalibrationCoefs(data, summary):
     else:  # we do have enough uniformly distributed points
 
         for it in range(MAXITER):
-
+            num_iter = num_iter + 1
             # Weighting. Outliers are zeroed out
             # This is different from the paper
             maxerr = np.quantile(errors, .995)
@@ -205,7 +205,7 @@ def getCalibrationCoefs(data, summary):
         initErr=initErr,
         bestErr=bestErr,
         nStatic=nStatic,
-        iterations=it,
+        iterations=num_iter,
         calibratedOnOwnData=1,
         goodCalibration=goodCalibration
     )
